@@ -51,3 +51,73 @@ def parse_json(data):
 ######################################################################
 # INSERT CODE HERE
 ######################################################################
+
+songscoll = db.songs
+
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify(dict(status="OK")), 200
+
+@app.route("/count", methods=["GET"])
+def count():
+    count = songscoll.count_documents({})
+    return {"count" : count}, 200
+
+@app.route("/song", methods=["GET"])
+def songs():
+    songs_list = list(db.songs.find({}))
+    return {"songs" : str(songs_list)}, 200
+
+@app.route("/song/<int:id>", methods=["GET"])
+def get_song_by_id(id):
+
+    query = str(db.songs.find_one({"id" : id}))
+
+    if query == "None":
+        return {"message" : "cancion con id no encontrada"}, 404
+    else:
+        return {"song" : query}, 200
+
+@app.route("/song", methods=["POST"])
+def create_song():
+    data = request.get_json()
+
+    existing_song = db.songs.find_one({"id": data.get("id")})
+    if existing_song:
+        return {"message": f"la cancion con id {data['id']} ya esta presente"}, 302
+    
+    new_song = db.songs.insert_one(data)
+
+    return {"inserted id": parse_json(new_song.inserted_id)}, 201
+
+@app.route("/song/<int:id>", methods=["PUT"])
+def update_song(id):
+    data = request.get_json()
+
+    existing_song = db.songs.find_one({"id": id})
+
+    if existing_song:
+        db.songs.update_one({"id" : id},{"$set": data})
+        
+        updated_song = db.songs.find_one({"id" : id})
+
+        if updated_song.modified_count > 0:
+            return parse_json(updated_song), 201
+        else:
+            return {"message": "song found, but nothing updated"}, 200
+        
+    
+    return {"message" : "cancion no encontrada"}, 404
+
+
+@app.route("/song/<int:id>", methods=["DELETE"])
+def delete_song(id):
+    del_song = db.songs.delete_one({"id": id})
+
+    if del_song.deleted_count == 0:
+        return {"message" : "cancion no encontrada"},404
+    elif del_song.deleted_count == 1:
+        return "", 204
+   
+
+
